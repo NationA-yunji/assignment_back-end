@@ -19,6 +19,10 @@ dynamodb = boto3.client(
     region_name=AWS_REGION
 )
 
+@app.route('/')
+def hello_world():
+    return 'Hello World!'
+
 @app.route('/api/getData')
 def get_dynamodb_data():
     try:
@@ -27,8 +31,15 @@ def get_dynamodb_data():
         items = response.get('Items', [])
 
         # 데이터를 JSON으로 변환하여 반환
-        data = [{'id': item['id']['S'], 'name': item['name']['S']} for item in items]
-        return jsonify(data)
+        formatted_data = []
+        for item in items:
+            formatted_item = {
+                "Artist": item["Artist"]["S"],
+                "SongTitle": item["SongTitle"]["S"]
+            }
+            formatted_data.append(formatted_item)
+    
+        return jsonify(formatted_data)
 
     except Exception as e:
         return jsonify({'error': str(e)})
