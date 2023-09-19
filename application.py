@@ -1,7 +1,11 @@
 from flask import Flask, jsonify
 import boto3
+from botocore.exceptions import NoCredentialsError
 from decouple import Config, RepositoryEnv
 from flask_cors import CORS
+import logging
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
@@ -45,13 +49,29 @@ response = s3.list_objects(Bucket=bucket_name, Prefix=prefix)
 # 객체 리스트 출력
 for obj in response.get('Contents', []):
     print('Object Key:', obj['Key'])
+    
+# 미리 서명된 URL 생성 함수
+def generate_signed_url(s3_client, client_method, method_parameters, expiration_time):
+    try:
+        # 서명된 URL 생성
+        signed_url = s3_client.generate_presigned_url(
+            ClientMethod = client_method, # 클라이언트 메서드
+            Params=method_parameters, # 클라이언트 메서드 파라미터
+            ExpiresIn=expiration_time # signed URL 유효기간
+        )
+        logger.info("Got presigned URL: %s", signed_url)
+        return signed_url
+    except NoCredentialsError as e:
+        error_message = "AWS credentials not found. Please check your configuration."
+        logger.error(error_message)
+        return {'error': error_message}, 500 
 
 # 라우팅
 @app.route('/')
 def hello_world():
     return 'Hello World!'
 
-@app.route('/api/getData')
+@app.route('/api/get-data')
 def get_dynamodb_data():
     try:
         # DynamoDB 테이블에서 데이터 가져오기
@@ -71,6 +91,13 @@ def get_dynamodb_data():
 
     except Exception as e:
         return jsonify({'error': str(e)})
+
+@app.route('/api/get-signed-url')
+def get_signed_url():
+    # 서명된 URL 생성
+    # Bucket = 버킷명 / Key = 버킷 내의 객체 경로 또는 키
+    signed_url = generate_signed_url(s3, 'get_object', {'Bucket': bucket_name, 'Key': 'S3-data/profile_bl.png'}, 3600)
+    return jsonify(signed_url)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
