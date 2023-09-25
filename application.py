@@ -69,7 +69,7 @@ def generate_signed_url(s3_client, client_method, method_parameters, expiration_
 # 라우팅
 @app.route('/')
 def hello_world():
-    return 'Hello World!'
+    return 'Hello World!', 200
 
 @app.route('/api/get-data')
 def get_dynamodb_data():
